@@ -3,13 +3,15 @@ import { generateText } from "ai"
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json()
+    const { prompt, model } = await req.json()
+    console.log("Received model:", model)
+    const modelName = model.split('/')[1] || 'gpt-4' // Default to gpt-4 if not specified
 
     const result = await generateText({
-      model: openai("gpt-4o"),
+      model: openai(modelName),
       prompt,
       system:
-        "You are a helpful AI assistant powered by OpenAI's GPT-4o model. Provide clear, concise, and accurate responses.",
+        "You are a helpful AI assistant powered by OpenAI. Provide clear, concise, and accurate responses.",
     })
 
     return Response.json({ text: result.text })

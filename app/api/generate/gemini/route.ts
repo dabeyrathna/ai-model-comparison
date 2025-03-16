@@ -3,11 +3,11 @@ import { generateText } from "ai"
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json()
+    const { prompt, model } = await req.json()
+    const modelName = model.split('/')[1] || 'gemini-1.5-pro' // Default to gemini-1.5-pro if not specified
 
-    // Note: You'll need to add GOOGLE_API_KEY to your environment variables
     const result = await generateText({
-      model: google("gemini-1.5-pro"),
+      model: google(modelName),
       prompt,
       system:
         "You are a helpful AI assistant powered by Google's Gemini model. Provide clear, concise, and accurate responses.",
@@ -17,6 +17,4 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Gemini generation error:", error)
     return Response.json({ error: "Failed to generate text with Gemini" }, { status: 500 })
-  }
 }
-

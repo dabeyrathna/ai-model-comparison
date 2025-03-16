@@ -1,12 +1,15 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, ArrowUp, Mic, RotateCcw } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, ArrowUp, Mic, RotateCcw, Sliders, X } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import ModelSelector from "@/components/model-selector"
+import { questions } from "@/components/questions"
+import { Tooltip as ReactTooltip } from "react-tooltip"
+import "/styles/SinglePanelView.css"
 
 interface SinglePanelViewProps {
   response: string | null
@@ -14,16 +17,52 @@ interface SinglePanelViewProps {
   prompt: string
   onSubmit: (input: string) => void
   messages: Array<{ role: 'user' | 'assistant', content: string }>
+  onQuestionSelect: (question: { title: string, question: string, options: string[] }) => void
 }
 
-export default function SinglePanelView({ response, isGenerating, prompt, onSubmit, messages }: SinglePanelViewProps) {
-  const [systemMessage, setSystemMessage] = useState("You are a helpful assistant...")
+export default function SinglePanelView({ response, isGenerating, prompt, onSubmit, messages, onQuestionSelect }: SinglePanelViewProps) {
   const [input, setInput] = useState("")
+  const [selectedModel, setSelectedModel] = useState("gpt-4o")
+  const [temperature, setTemperature] = useState(1.0)
+  const [maxTokens, setMaxTokens] = useState(2048)
+  const [showFilterModal, setShowFilterModal] = useState(false)
+  const filterButtonRef = useRef<HTMLButtonElement>(null)
 
-  const handleSubmit = () => {
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const handleSubmit = async () => {
     if (input.trim() && !isGenerating) {
-      onSubmit(input.trim())
+      const userMessage = input.trim()
+      onSubmit(userMessage)
       setInput("")
+
+      try {
+        setIsGenerating(true)
+
+        const response = await fetch("/api/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: userMessage,
+            model: selectedModel,
+            temperature,
+            maxTokens,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to generate response")
+        }
+
+        const data = await response.json()
+        onSubmit(data.text)
+      } catch (error) {
+        console.error("Error generating response:", error)
+      } finally {
+        setIsGenerating(false)
+      }
     }
   }
 
@@ -34,81 +73,86 @@ export default function SinglePanelView({ response, isGenerating, prompt, onSubm
     }
   }
 
+  const handleClear = () => {
+    setInput("")
+  }
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages, isGenerating])
+
   return (
-    <div className="flex-1 grid grid-cols-2 gap-0">
-      {/* Left side - System message and configuration */}
-      <div className="border-r border-[#1A1A1A]">
-        <div className="flex items-center justify-between p-2 border-b border-[#1A1A1A]">
-          <div className="flex items-center space-x-2">
-            <Select defaultValue="gpt-4o">
-              <SelectTrigger className="w-[180px] h-8 bg-transparent border-0 text-sm focus:ring-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                <SelectItem value="gpt-4o">gpt-4o</SelectItem>
-                <SelectItem value="gpt-4">gpt-4</SelectItem>
-                <SelectItem value="gpt-3.5-turbo">gpt-3.5-turbo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="single-panel-view flex h-full">
+      {/* Left side - Questions and configuration */}
+      <div className="left-panel flex flex-col w-1/3 border-r border-[#1A1A1A] p-4">
+        <div className="header mb-4 flex items-center space-x-2">
+          <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
+          <Button
+            ref={filterButtonRef}
+            size="icon"
+            variant="ghost"
+            className="button"
+            onClick={() => setShowFilterModal(!showFilterModal)}
+          >
+            <Sliders className="h-5 w-5" />
+          </Button>
         </div>
 
-        <div className="p-4">
-          <div className="text-sm text-gray-400 mb-2">System message</div>
-          <Textarea
-            value={systemMessage}
-            onChange={(e) => setSystemMessage(e.target.value)}
-            placeholder="You are a helpful assistant..."
-            className="min-h-[300px] bg-[#1A1A1A] border-[#333333] resize-none text-sm"
-          />
-
-          {/* Model configuration */}
-          <div className="mt-4 p-4 bg-[#1A1A1A] rounded-lg border border-[#333333]">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm text-gray-400 mb-1">Temperature</div>
-                <input
-                  type="number"
-                  defaultValue="1.0"
-                  className="w-full bg-[#2A2A2A] border border-[#333333] rounded px-2 py-1 text-sm text-white"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-gray-400 mb-1">Max tokens</div>
-                <input
-                  type="number"
-                  defaultValue="2048"
-                  className="w-full bg-[#2A2A2A] border border-[#333333] rounded px-2 py-1 text-sm text-white"
-                />
-              </div>
-            </div>
+        <div className="content flex-1 overflow-auto">
+          {/* Questions */}
+          <div className="questions">
+            <div className="text-sm text-gray-400 mb-2">Select a question:</div>
+            <ul className="space-y-4">
+              {questions.map((question) => (
+                <li
+                  key={question.id}
+                  className="bg-[#1A1A1A] p-4 rounded hover:bg-[#333333] cursor-pointer"
+                  onClick={() => onQuestionSelect({ title: question.title, question: question.question, options: question.options })}
+                >
+                  <div className="text-white font-semibold mb-2">{question.title}</div>
+                  <div className="text-gray-300 mb-2">{question.question}</div>
+                  <ul className="space-y-1">
+                    {question.options.map((option, index) => (
+                      <li key={index}>
+                        <div className="text-left w-full p-2 bg-[#2A2A2A] rounded text-white">
+                          {option}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>
 
       {/* Right side - Chat interface */}
-      <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-auto p-4">
+      <div className="right-panel flex-1 flex flex-col p-4">
+        <div className="messages flex-1 overflow-auto">
           {messages.length > 0 ? (
             <div className="space-y-6">
               {messages.map((message, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="text-sm text-gray-400">
+                <div key={index} className="message">
+                  <div className="role">
                     {message.role === 'user' ? 'User' : 'Assistant'}
                   </div>
-                  <div className="text-sm text-white bg-[#1A1A1A] p-3 rounded-md">
-                    {message.content}
+                  <div className="content">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 </div>
               ))}
               {isGenerating && (
-                <div className="space-y-2">
-                  <div className="text-sm text-gray-400">Assistant</div>
+                <div className="message">
+                  <div className="role">Assistant</div>
                   <div className="flex items-center justify-center py-8 bg-[#1A1A1A] rounded-md">
                     <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           ) : (
             <div className="h-full flex items-center justify-center text-gray-500">
@@ -118,28 +162,30 @@ export default function SinglePanelView({ response, isGenerating, prompt, onSubm
         </div>
 
         {/* Chat input integrated in the right panel */}
-        <div className="p-4 border-t border-[#1A1A1A]">
-          <div className="relative flex items-end bg-[#1A1A1A] rounded-lg border border-[#333333] focus-within:border-[#666666] transition-colors">
+        <div className="input-container mt-4">
+          <div className="input-wrapper relative flex items-end bg-[#1A1A1A] border border-[#333333] rounded transition-colors focus-within:border-[#666666]">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Enter user message..."
-              className="flex-1 max-h-[200px] p-3 pr-20 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none text-white placeholder-gray-500 text-sm"
-              style={{ minHeight: "44px" }}
+              className="textarea flex-1 max-h-40 p-3 bg-transparent border-0 resize-none outline-none text-white text-sm"
             />
-            <div className="absolute bottom-1.5 right-2 flex items-center space-x-2">
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-white">
+            <div className="buttons absolute bottom-2 right-2 flex gap-2">
+              <Button size="icon" variant="ghost" className="button" onClick={handleClear}>
+                <X className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" className="button">
                 <RotateCcw className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-white">
+              <Button size="icon" variant="ghost" className="button">
                 <Mic className="h-4 w-4" />
               </Button>
               <Button
                 size="icon"
                 onClick={handleSubmit}
                 disabled={!input.trim() || isGenerating}
-                className="h-8 w-8 bg-[#10A37F] hover:bg-[#0D8A6C] disabled:opacity-50"
+                className="submit-button bg-[#10A37F] hover:bg-[#0D8A6C] disabled:opacity-50"
               >
                 {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
               </Button>
@@ -147,6 +193,47 @@ export default function SinglePanelView({ response, isGenerating, prompt, onSubm
           </div>
         </div>
       </div>
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div
+          className="absolute z-50 bg-[#1A1A1A] p-6 rounded-lg w-96"
+          style={{
+            top: filterButtonRef.current?.getBoundingClientRect().bottom + window.scrollY + 10,
+            left: filterButtonRef.current?.getBoundingClientRect().left + window.scrollX,
+          }}
+        >
+          <h2 className="text-white text-lg mb-4">Model Settings</h2>
+          <div className="mb-4">
+            <label className="text-gray-400 text-sm mb-2 block" data-tip="Controls the randomness of the output. Lower values make the output more deterministic.">Temperature</label>
+            <ReactTooltip place="top" type="dark" effect="solid" />
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={temperature}
+              onChange={(e) => setTemperature(parseFloat(e.target.value))}
+              className="w-full"
+            />
+            <div className="text-gray-400 text-sm mt-1">{temperature}</div>
+          </div>
+          <div className="mb-4">
+            <label className="text-gray-400 text-sm mb-2 block" data-tip="The maximum number of tokens to generate. Higher values allow for longer responses.">Max Tokens</label>
+            <ReactTooltip place="top" type="dark" effect="solid" />
+            <input
+              type="range"
+              min="1"
+              max="4096"
+              step="1"
+              value={maxTokens}
+              onChange={(e) => setMaxTokens(parseInt(e.target.value))}
+              className="w-full"
+            />
+            <div className="text-gray-400 text-sm mt-1">{maxTokens}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

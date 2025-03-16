@@ -32,7 +32,6 @@ export default function AIPlayground() {
   })
   const [prompt, setPrompt] = useState("")
 
-  // Handle generating responses
   const handleSubmit = async (input: string) => {
     if (!input) return
     setPrompt(input)
@@ -49,13 +48,24 @@ export default function AIPlayground() {
       // Generate responses based on how many panels are visible
       const panelsToGenerate = compareCount === COMPARE_SINGLE ? 1 : compareCount === COMPARE_DOUBLE ? 2 : 3
 
+      // Define default models for each panel
+      const defaultModels = {
+        A: 'openai/gpt-4',
+        B: 'anthropic/claude-3-sonnet',
+        C: 'google/gemini-1.5-pro'
+      }
+
       const fetchPromises = []
       for (let i = 0; i < panelsToGenerate; i++) {
+        const panelId = String.fromCharCode(65 + i) as 'A' | 'B' | 'C'
+        const model = defaultModels[panelId]
+        const [provider] = model.split('/')
+
         fetchPromises.push(
-          fetch("/api/generate/openai", {
+          fetch(`/api/generate/${provider}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: input }),
+            body: JSON.stringify({ prompt: input, model }),
           }),
         )
       }
@@ -83,6 +93,42 @@ export default function AIPlayground() {
     } catch (error) {
       console.error("Error generating responses:", error)
       // Provide user feedback in the UI
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  // Handle question selection
+  const handleQuestionSelect = async (question: { title: string, question: string, options: string[] }) => {
+    setPrompt(question.question)
+    setCompareCount(COMPARE_TRIPLE) // Switch to multiple view response
+
+    try {
+      setIsGenerating(true)
+
+      const fetchPromises = ["A", "B", "C"].map(panelId =>
+        fetch(`/api/generate/${panelId === "A" ? "openai" : panelId === "B" ? "anthropic" : "google"}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: question.question,
+            model: panelId === "A" ? "gpt-4" : panelId === "B" ? "claude-3-sonnet" : "gemini-1.5-pro",
+          }),
+        })
+      )
+
+      const results = await Promise.all(fetchPromises)
+      const data = await Promise.all(results.map(res => res.json()))
+
+      setResponses({
+        A: data[0].text,
+        B: data[1].text,
+        C: data[2].text,
+      })
+    } catch (error) {
+      console.error("Error generating responses:", error)
     } finally {
       setIsGenerating(false)
     }
@@ -145,6 +191,7 @@ export default function AIPlayground() {
             prompt={prompt}
             onSubmit={handleSubmit}
             messages={messages}
+            onQuestionSelect={handleQuestionSelect}
           />
         ) : (
           <>
@@ -185,11 +232,11 @@ export default function AIPlayground() {
         )}
 
         {/* Chat input - only shown in compare mode */}
-        {compareCount > COMPARE_SINGLE && (
-          <div className="shrink-0 p-4 border-t border-[#1A1A1A]">
-            <ChatInput onSubmit={handleSubmit} isGenerating={isGenerating} />
-          </div>
-        )}
+{compareCount > COMPARE_SINGLE && (
+        <div className="shrink-0 p-4 border-t border-[#1A1A1A]">
+          <ChatInput onSubmit={handleSubmit} isGenerating={isGenerating} />
+        </div>
+)}
       </div>
     </div>
   )

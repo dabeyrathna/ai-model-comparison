@@ -1,0 +1,49 @@
+.panel-container {
+  @apply flex-1 grid grid-cols-2 gap-0;
+}
+
+.left-panel {
+  @apply border-r border-[color:var(--border-color)] px-6;
+}
+
+.panel-navbar {
+  @apply flex items-center justify-between p-4 border-b border-[color:var(--border-color)];
+}
+
+.system-message-container {
+  @apply p-6;
+}
+
+.model-config {
+  @apply mt-6 p-4 bg-[color:var(--panel-background)] rounded-lg border border-[color:var(--border-color)];
+}
+
+.right-panel {
+  @apply flex flex-col h-full flex-[2];
+}
+
+.chat-messages-container {
+  @apply flex-1 overflow-y-auto px-6 py-4;
+}
+
+.message-input {
+  @apply w-full bg-[color:var(--input-background)] border border-[color:var(--border-color)] 
+         rounded px-2 py-1 text-sm text-[color:var(--text-primary)];
+}
+
+.system-textarea {
+  @apply min-h-[300px] bg-[color:var(--panel-background)] border border-[color:var(--border-color)] 
+         resize-none text-sm text-[color:var(--text-primary)];
+}
+
+.message {
+  @apply space-y-2 mb-4;
+}
+
+.message-role {
+  @apply text-sm text-[color:var(--text-secondary)];
+}
+
+.message-content {
+  @apply text-sm bg-[color:var(--panel-background)] p-3 rounded-md;
+}

@@ -3,14 +3,17 @@ import { generateText } from "ai"
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json()
+    const { prompt, model } = await req.json()
+    const modelName = model.split('/')[1] || 'claude-3-sonnet' // Default to claude-3-sonnet if not specified
 
-    // Note: You'll need to add ANTHROPIC_API_KEY to your environment variables
+    const api_key = process.env.ANTHROPIC_API_KEY;
+    console.log("API Key:", api_key);
+
     const result = await generateText({
-      model: anthropic("claude-3-5-sonnet-20240620"),
+      model: anthropic(modelName, { apiKey:  api_key}),
       prompt,
       system:
-        "You are a helpful AI assistant powered by Anthropic's Claude model. Provide clear, concise, and accurate responses.",
+        "You are a helpful AI assistant powered by Anthropic's Claude. Provide clear, concise, and accurate responses.",
     })
 
     return Response.json({ text: result.text })
