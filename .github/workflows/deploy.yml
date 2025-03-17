@@ -10,7 +10,7 @@ jobs:
   type-check:
     steps:
       - name: Run typescript
-        run: npm run react-day-picker@"4.1.0"
+        run: npm run react-day-picker@"8.10.1"
 
   deploy:
     name: Deploy Next.js to Vercel
@@ -24,7 +24,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18  # Use the recommended Node.js version for your project
+          node-version: 19  # Use the recommended Node.js version for your project
           cache: 'npm'
 
       - name: Install dependencies
