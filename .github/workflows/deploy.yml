@@ -3,28 +3,36 @@ name: Deploy to Vercel
 on:
   push:
     branches:
-      - main  # Change this if you want to deploy from a different branch
+      - main  # Set your desired branch (e.g., main or master)
+  pull_request:
+    branches:
+      - master
 
 jobs:
   deploy:
-    name: Deploy Next.js to Vercel
+    name: Deploy to Vercel
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
-        
-      - name: Install dependencies
-        run: npm install  # Change to yarn install or pnpm install if needed
+        with:
+          node-version: '18'  # Specify the Node.js version you want to use
 
-      - name: Build project
-        run: npm run build  # Make sure your Next.js project builds successfully
+      - name: Install dependencies
+        run: npm install  # Or `yarn install` or `pnpm install` depending on your package manager
+
+      - name: Build the project
+        run: npm run build  # Run the build command for your project (Next.js default is `npm run build`)
 
       - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+        run: npm install -g vercel  # Install the Vercel CLI globally
 
       - name: Deploy to Vercel
-        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_SCOPE }} --confirm
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}  # Vercel Personal Access Token
+          VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE }}  # Vercel Scope (optional, only if needed)
