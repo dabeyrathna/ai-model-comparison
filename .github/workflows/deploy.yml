@@ -12,6 +12,9 @@ jobs:
       - name: Run typescript
         run: npm run react-day-picker@"4.1.0"
 
+      - name: Run date
+        run: npm install date-fns@3.0.0
+
   deploy:
     name: Deploy Next.js to Vercel
     needs: react-day-picker
